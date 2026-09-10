@@ -63,7 +63,7 @@ tab1, tab2, tab3 = st.tabs(
     [
         "일별 관객수 변화 (선 그래프)",
         "누적 관객수 변화 (영역 차트)",
-        "Top 5 영화 누적관객수 비교 (다중 선)",
+        "20일 이상 장기 흥행 Top 5 비교 (다중 선)",
     ]
 )
 
@@ -105,23 +105,37 @@ with tab2:
     )
 
 # ------------------------------------------
-# 세 번째 탭: 누적관객수 Top 5 영화 비교 (다중 선 그래프)
+# 세 번째 탭: TOP10 20일 이상 등재 영화 중 누적관객수 Top 5 (수정)
 # ------------------------------------------
 with tab3:
-    # 1. 누적관객수가 가장 높은 상위 5개 영화 선택
-    top5_movies = movie_order[:5]
+    # 1. 영화별 등장 일수(행 수) 및 최대 누적관객수 집계
+    movie_stats = (
+        df.groupby("영화명")
+        .agg(
+            days_in_top10=("기준일자", "count"),  # TOP10 차트 등재 일수
+            max_audience=("누적관객수", "max"),  # 최대 누적관객수
+        )
+        .reset_index()
+    )
 
-    # 2. 전체 데이터 중 Top 5 영화 데이터만 추출
-    top5_df = df[df["영화명"].isin(top5_movies)]
+    # 2. TOP10에 20일 미만으로 등장한 영화 제외 (20일 이상만 남김)
+    long_running_movies = movie_stats[movie_stats["days_in_top10"] >= 20]
 
-    # 3. Plotly 다중 선 그래프 생성
-    # color="영화명" 설정을 통해 영화별로 색상을 자동으로 다르게 적용하고 범례를 표시합니다.
+    # 3. 20일 이상 장기 흥행한 영화 중 누적관객수 기준 상위 5개 추출
+    top5_long_running = long_running_movies.sort_values(
+        by="max_audience", ascending=False
+    ).head(5)["영화명"].tolist()
+
+    # 4. 전체 데이터에서 해당 Top 5 영화 데이터만 필터링
+    top5_df = df[df["영화명"].isin(top5_long_running)]
+
+    # 5. Plotly 다중 선 그래프 생성
     fig_multi_line = px.line(
         top5_df,
         x="기준일자",
         y="누적관객수",
         color="영화명",  # 영화별 색상 구분 및 범례 생성
-        title="상위 5개 영화의 기준일자별 누적관객수 추이 비교",
+        title="TOP 10 20일 이상 장기 흥행 영화 중 누적관객수 Top 5 비교",
         labels={
             "기준일자": "날짜",
             "누적관객수": "누적 관객수(명)",
@@ -132,8 +146,8 @@ with tab3:
     st.plotly_chart(fig_multi_line, use_container_width=True)
 
     # 상위 5개 영화 이름을 보기 쉽게 쉼표로 연결
-    top5_names_str = ", ".join(top5_movies)
+    top5_names_str = ", ".join(top5_long_running)
 
     st.info(
-        f"💡 **이 그래프로 알 수 있는 것:** 역대 누적관객수 Top 5 영화({top5_names_str})의 흥행 속도를 한 화면에서 직접 비교하여, 특정 영화가 상대적으로 얼마나 가파르게 관객을 모았는지 알 수 있습니다."
+        f"💡 **이 그래프로 알 수 있는 것:** 단기 반짝 흥행을 제외하고, TOP 10에 20일 이상 장기 등재된 검증된 흥행작({top5_names_str})들의 누적관객수 증가 속도와 흥행 유지력을 비교할 수 있습니다."
     )
