@@ -1,29 +1,84 @@
-스트림릿(Streamlit)+깃허브로 웹앱을 만들려고 해.
+import pandas as pd
+import plotly.express as px
+import streamlit as st
 
-[1. 데이터 불러오기]
-- 아래 주소의 CSV 파일을 pandas로 불러와줘.
-https://raw.githubusercontent.com/keep-growing-park/data-science/refs/heads/main/dataset/kobis_1year_boxoffice.csv
-- 이 파일은 앱이 시작될 때마다 새로 불러오지 않고, 
-  한 번 불러온 걸 저장해뒀다가 계속 재사용하도록 해줘.
-  (다시 불러오느라 앱이 느려지지 않게)
 
-[2. 날짜 전처리]
-- 결측치가 포함된 행은 삭제해 줘
-- "기준일자" 컬럼(yyyy-mm-dd)을 날짜(datetime) 형식으로 바꿔줘.
-- 그리고 전체 데이터를 기준일자 순서대로 정렬해줘.
+# ==========================================
+# [1] 데이터 불러오기 (캐싱 적용)
+# ==========================================
+# @st.cache_data 데코레이터를 사용하여 매번 파일 전체를 다시 불러오지 않고
+# 한 번 로드한 데이터를 메모리에 저장(캐싱)하여 앱의 실행 속도를 높입니다.
+@st.cache_data
+def load_data():
+    url = "https://raw.githubusercontent.com/keep-growing-park/data-science/refs/heads/main/dataset/kobis_1year_boxoffice.csv"
+    df = pd.read_csv(url)
 
-[3. 영화 선택 기능]
-- "영화명" 컬럼에 있는 영화 이름들을 중복 없이 뽑아서
-  목록에서 선택할 수 있도록 해 줘.
-- 목록 순서는 누적관객수로 내림차순해 줘.
+    # ------------------------------------------
+    # [2] 데이터 전처리
+    # ------------------------------------------
+    # 1. 결측치(빈값)가 포함된 모든 행 삭제
+    df = df.dropna()
 
-[4. 선그래프 그리기]
-- 사용자가 고른 영화의 "기준일자"별 "해당일관객수"의 변화를
-  Plotly 선 그래프로 그려줘.
+    # 2. '기준일자' 컬럼을 datetime(날짜) 형식으로 변환
+    df["기준일자"] = pd.to_datetime(df["기준일자"])
 
-[5. 기타]
-- 앞으로 그래프를 더 추가할 예정이니까 구역을 나눠 줘.
-- 그래프마다 아래에 '이 그래프로 알 수 있는 것' 한 문장을 문구로 넣을 자리를 만들어 줘.
-- 코드에 초보자도 이해할 수 있는 한글 주석을 달아서 main.py로 만들어 줘.
-- 이 앱을 실행하는 데 필요한 라이브러리 목록을 requirements.txt 파일로 따로 만들어줘.
-  버전 숫자 없이 이름만.
+    # 3. 전체 데이터를 '기준일자' 기준으로 오름차순 정렬
+    df = df.sort_values("기준일자")
+
+    return df
+
+
+# 데이터 로드
+df = load_data()
+
+# Page 설정
+st.set_page_config(page_title="영화 박스오피스 분석 앱", layout="wide")
+st.title("🎬 영화 박스오피스 데이터 분석 앱")
+
+# ==========================================
+# [3] 영화 선택 기능 (사이드바)
+# ==========================================
+st.sidebar.header("🔍 검색 및 선택")
+
+# 각 영화의 최대 누적관객수를 구해 누적관객수가 많은 순서대로 정렬합니다.
+movie_order = (
+    df.groupby("영화명")["누적관객수"].max().sort_values(ascending=False).index
+)
+
+# 사용자로부터 영화 이름을 선택받습니다.
+selected_movie = st.sidebar.selectbox(
+    "분석할 영화를 선택하세요", options=movie_order
+)
+
+# 선택한 영화에 대한 데이터만 필터링합니다.
+filtered_df = df[df["영화명"] == selected_movie]
+
+# ==========================================
+# [4 & 5] 그래프 구역 나누기 및 시각화
+# ==========================================
+st.subheader(f"📊 {selected_movie} - 관객수 변화 분석")
+
+# 추후 다른 그래프를 추가하기 용이하도록 탭(Tab) 구역을 나눕니다.
+tab1, tab2 = st.tabs(["일별 관객수 변화 (Plotly)", "추후 추가 예정 구역"])
+
+with tab1:
+    # Plotly 라인 차트 생성
+    fig = px.line(
+        filtered_df,
+        x="기준일자",
+        y="해당일관객수",
+        title=f"'{selected_movie}'의 일자별 관객수 추이",
+        markers=True,  # 각 데이터 지점에 점 표시
+        labels={"기준일자": "날짜", "해당일관객수": "일별 관객수(명)"},
+    )
+
+    # 그래프 출력
+    st.plotly_chart(fig, use_container_width=True)
+
+    # 그래프 하단 설명 문구 들어갈 자리
+    st.info(
+        f"💡 **이 그래프로 알 수 있는 것:** {selected_movie} 영화는 개봉 초기와 주말에 관객수가 크게 증가하는 경향을 확인할 수 있습니다."
+    )
+
+with tab2:
+    st.write("📌 이 구역에는 향후 추가할 새로운 그래프(예: 누적관객수 추이, 스크린수 대비 관객수 등)를 배치할 수 있습니다.")
