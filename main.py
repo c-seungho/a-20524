@@ -59,13 +59,14 @@ filtered_df = df[df["영화명"] == selected_movie]
 # ==========================================
 st.subheader("📊 박스오피스 다각도 데이터 분석")
 
-# 탭(Tab) 구역을 4개로 나눕니다.
-tab1, tab2, tab3, tab4 = st.tabs(
+# 탭(Tab) 구역을 5개로 나눕니다.
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "일별 관객수 변화 (선 그래프)",
         "누적 관객수 변화 (영역 차트)",
         "20일 이상 장기 흥행 Top 5 비교 (다중 선)",
         "전체 박스오피스 7일 이동평균선",
+        "월별 전체 관객수 합계 (막대그래프)",
     ]
 )
 
@@ -154,54 +155,52 @@ with tab3:
     )
 
 # ------------------------------------------
-# 네 번째 탭: TOP10 합계 일별 관객수 및 7일 이동평균선 (신규)
+# 네 번째 탭: TOP10 합계 일별 관객수 및 7일 이동평균선
 # ------------------------------------------
-with tab4:
-    # 1. 기준일자별로 TOP10 영화 전체의 해당일관객수를 합산합니다.
-    daily_total = (
-        df.groupby("기준일자")["해당일관객수"]
-        .sum()
-        .reset_index()
-        .sort_values("기준일자")
-    )
+# 네 번째 탭과 다섯 번째 탭에서 공통으로 사용할 '일별 전체 관객수 합계' 계산
+daily_total = (
+    df.groupby("기준일자")["해당일관객수"]
+    .sum()
+    .reset_index()
+    .sort_values("기준일자")
+)
 
-    # 2. 7일 이동평균(Moving Average) 계산
-    # window=7: 7일간의 평균, min_periods=1: 초반 1~6일차 데이터도 누락 없이 표시
+with tab4:
+    # 7일 이동평균(Moving Average) 계산
     daily_total["7일이동평균"] = (
         daily_total["해당일관객수"].rolling(window=7, min_periods=1).mean()
     )
 
-    # 3. Plotly graph_objects를 이용해 원본 선과 이동평균 선을 하나의 그래프에 중첩
+    # Plotly graph_objects 생성
     fig_ma = go.Figure()
 
-    # (1) 원본 일별 총 관객수 (연하게 표현)
+    # (1) 원본 일별 총 관객수 (연하게)
     fig_ma.add_trace(
         go.Scatter(
             x=daily_total["기준일자"],
             y=daily_total["해당일관객수"],
             mode="lines",
             name="일별 총 관객수 (일간 합계)",
-            line=dict(color="rgba(150, 180, 220, 0.4)", width=1.5),  # 연한 파란색
+            line=dict(color="rgba(150, 180, 220, 0.4)", width=1.5),
         )
     )
 
-    # (2) 7일 이동평균선 (진하게 표현)
+    # (2) 7일 이동평균선 (진하게)
     fig_ma.add_trace(
         go.Scatter(
             x=daily_total["기준일자"],
             y=daily_total["7일이동평균"],
             mode="lines",
             name="7일 이동평균선",
-            line=dict(color="#1f77b4", width=3),  # 진한 파란색 및 두꺼운 선
+            line=dict(color="#1f77b4", width=3),
         )
     )
 
-    # 그래프 레이아웃 설정
     fig_ma.update_layout(
         title="전체 박스오피스(TOP 10) 일별 관객수 합계 및 7일 이동평균 추이",
         xaxis_title="날짜",
         yaxis_title="관객수(명)",
-        hovermode="x unified",  # 마우스 커서 위치의 X축 값 통합 표시
+        hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
 
@@ -209,4 +208,41 @@ with tab4:
 
     st.info(
         "💡 **이 그래프로 알 수 있는 것:** 주말과 평일의 심한 변동성(연한 선)을 제거하고, 7일 이동평균선(진한 선)을 통해 연중 전체 극장가 관객 수의 전반적인 상승·하락 흐름과 성수기/비성수기 추세를 명확하게 확인할 수 있습니다."
+    )
+
+# ------------------------------------------
+# 다섯 번째 탭: 월별 전체 관객수 합계 (막대그래프) (신규)
+# ------------------------------------------
+with tab5:
+    # 1. '기준일자'에서 '연-월(YYYY-MM)' 형태의 문자열 컬럼 생성
+    daily_total["연월"] = daily_total["기준일자"].dt.strftime("%Y-%m")
+
+    # 2. 월 단위로 그룹화하여 해당일관객수의 총합을 계산
+    monthly_total = (
+        daily_total.groupby("연월")["해당일관객수"]
+        .sum()
+        .reset_index()
+        .sort_values("연월")
+    )
+
+    # 3. Plotly 막대그래프(Bar Chart) 생성
+    fig_bar = px.bar(
+        monthly_total,
+        x="연월",
+        y="해당일관객수",
+        title="월별 전체 박스오피스(TOP 10) 총 관객수 합계",
+        labels={"연월": "연-월", "해당일관객수": "월간 총 관객수(명)"},
+        text_auto=".2s",  # 막대 상단에 숫자를 간략하게 표시 (예: 1.2M)
+    )
+
+    # 막대 색상 및 레이아웃 설정
+    fig_bar.update_traces(
+        marker_color="#2b5c8f", textposition="outside"
+    )  # 막대 상단에 값 배치
+    fig_bar.update_layout(xaxis_type="category")  # 연-월 축을 카테고리로 지정하여 깔끔하게 표시
+
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+    st.info(
+        "💡 **이 그래프로 알 수 있는 것:** 일별/주별 변동을 넘어 월별 총 관객 규모를 한눈에 파악할 수 있으며, 연중 극장가가 가장 붐비는 대목(성수기 월)과 상대적으로 관객이 적은 비성수기 월의 차이를 명확하게 알 수 있습니다."
     )
