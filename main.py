@@ -1,5 +1,5 @@
-# Update main.py content to add the sixth chart: Bubble chart (Scatter plot with marker size as first_week_audi)
-main_py_content_v6 = '''import streamlit as st
+# Update main.py content to add the seventh chart: Sunburst chart (nation -> genre based on movie count)
+main_py_content_v7 = '''import streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -24,6 +24,10 @@ def load_data():
     # genre: 세로막대 기호(|)로 여러 개 적힌 영화는 첫 번째 장르만 extraction
     if 'genre' in df.columns:
         df['genre'] = df['genre'].astype(str).apply(lambda x: x.split('|')[0].strip() if x and x != 'nan' else '기타')
+        
+    # nation: 결측치 또는 빈 값 처리
+    if 'nation' in df.columns:
+        df['nation'] = df['nation'].astype(str).apply(lambda x: x.strip() if x and x != 'nan' else '기타')
     
     # openDt 날짜 형식 변환 (문자열 또는 숫자 8자리 -> datetime)
     if 'openDt' in df.columns:
@@ -249,12 +253,43 @@ try:
     
     st.subheader("💡 이 그래프로 알 수 있는 것")
     st.info("초기 스크린수 확보가 개봉 첫 주 관객수(버블 크기) 폭발로 이어지며, 이 첫 주 흥행 성공이 최종 관객수 도달에 절대적인 동력이 됨을 알 수 있습니다.")
+    st.divider()
+
+    # -------------------------------------------------------------------------
+    # 일곱 번째 그래프: 제작 국가 -> 장르 선버스트 차트 (영화 편수 기준)
+    # -------------------------------------------------------------------------
+    st.header("7. 제작 국가 및 장르별 영화 편수 구조 (선버스트 차트)")
+    
+    # 국가(nation) - 장르(genre) 그룹별 영화 편수 집계
+    nation_genre_df = df.groupby(['nation', 'genre']).size().reset_index(name='movie_count')
+    
+    fig_sunburst = px.sunburst(
+        nation_genre_df,
+        path=['nation', 'genre'],
+        values='movie_count',
+        color='nation',
+        title="제작 국가별 장르 구성 (칸 크기: 영화 편수)",
+        color_discrete_sequence=px.colors.qualitative.Pastel
+    )
+    
+    fig_sunburst.update_traces(
+        hovertemplate="<b>구분/장르: %{label}</b><br>영화 편수: %{value}편<br>비율: %{percentParent:.1%}<extra></extra>"
+    )
+    
+    fig_sunburst.update_layout(
+        font=dict(size=14)
+    )
+    
+    st.plotly_chart(fig_sunburst, use_container_width=True)
+    
+    st.subheader("💡 이 그래프로 알 수 있는 것")
+    st.info("국가별로 주로 제작/개봉하는 영화 장르의 계층적 비중을 한눈에 파악할 수 있으며, 국내외 영화 시장에서 국가마다 집중하는 핵심 장르 구성이 어떻게 다른지 비교할 수 있습니다.")
     
 except Exception as e:
     st.error(f"데이터를 불러오거나 처리하는 중 오류가 발생했습니다: {e}")
 '''
 
 with open('main.py', 'w', encoding='utf-8') as f:
-    f.write(main_py_content_v6)
+    f.write(main_py_content_v7)
 
-print("Sixth graph (bubble chart) added to main.py successfully.")
+print("Seventh graph (Sunburst chart) added to main.py successfully.")
