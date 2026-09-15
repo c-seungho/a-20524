@@ -1,5 +1,5 @@
-# Update main.py content to add treemap as requested
-main_py_content_v2 = '''import streamlit as st
+# Update main.py content to add histogram graph as the third chart and analyze the requested values
+main_py_content_v3 = '''import streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -102,9 +102,51 @@ try:
     st.divider()
 
     # -------------------------------------------------------------------------
-    # 세 번째 그래프: 개봉일 상영 규모와 관객 수의 관계 (산점도)
+    # 세 번째 그래프: 총 관객수(total_audi) 히스토그램
     # -------------------------------------------------------------------------
-    st.header("3. 개봉일 상영 규모와 관객 수의 관계")
+    st.header("3. 총 관객수(total_audi) 분포 (히스토그램)")
+    
+    # 히스토그램 생성
+    fig_hist = px.histogram(
+        df,
+        x='total_audi',
+        nbins=30,
+        title="영화별 총 관객수 분포",
+        labels={'total_audi': '총 관객수(명)'},
+        color_discrete_sequence=['#1f77b4']
+    )
+    
+    fig_hist.update_traces(
+        hovertemplate="관객수 구간: %{x:,}명<br>영화 편수: %{y}편<extra></extra>"
+    )
+    
+    fig_hist.update_layout(
+        yaxis_title="영화 편수",
+        font=dict(size=14)
+    )
+    
+    st.plotly_chart(fig_hist, use_container_width=True)
+    
+    # 관객 수가 가장 많은 영화 정보 분석
+    top_movie = df.loc[df['total_audi'].idxmax()]
+    top_movie_name = top_movie['movieNm']
+    top_movie_audi = top_movie['total_audi']
+    
+    # 100만 명 미만 비율 동적 계산
+    under_1m_count = (df['total_audi'] < 1000000).sum()
+    under_1m_pct = (under_1m_count / len(df)) * 100
+    
+    st.subheader("💡 이 그래프로 알 수 있는 것")
+    st.info(
+        f"대부분의 영화({under_1m_pct:.1f}%)가 관객수 100만 명 미만의 하위 구간에 집중되어 있는 롱테일(Long-tail) 분포 형태를 보이며, "
+        f"가장 관객 수가 많은 영화는 총 {top_movie_audi:,}명을 동원한 '{top_movie_name}'입니다."
+    )
+    st.divider()
+
+    # -------------------------------------------------------------------------
+    # 네 번째 그래프: 개봉일 상영 규모와 관객 수의 관계 (산점도)
+    # -------------------------------------------------------------------------
+    st.header("4. 개봉일 상영 규모와 관객 수의 관계")
     
     col1, col2 = st.columns([2, 1])
     with col2:
@@ -147,6 +189,6 @@ except Exception as e:
 '''
 
 with open('main.py', 'w', encoding='utf-8') as f:
-    f.write(main_py_content_v2)
+    f.write(main_py_content_v3)
 
-print("main.py updated successfully.")
+print("Histogram chart added to main.py successfully.")
