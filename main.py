@@ -1,5 +1,5 @@
-# Update main.py content to add histogram graph as the third chart and analyze the requested values
-main_py_content_v3 = '''import streamlit as st
+# Update main.py content to structure all four charts nicely according to requirements
+main_py_content_v4 = '''import streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -106,7 +106,6 @@ try:
     # -------------------------------------------------------------------------
     st.header("3. 총 관객수(total_audi) 분포 (히스토그램)")
     
-    # 히스토그램 생성
     fig_hist = px.histogram(
         df,
         x='total_audi',
@@ -132,7 +131,6 @@ try:
     top_movie_name = top_movie['movieNm']
     top_movie_audi = top_movie['total_audi']
     
-    # 100만 명 미만 비율 동적 계산
     under_1m_count = (df['total_audi'] < 1000000).sum()
     under_1m_pct = (under_1m_count / len(df)) * 100
     
@@ -144,51 +142,44 @@ try:
     st.divider()
 
     # -------------------------------------------------------------------------
-    # 네 번째 그래프: 개봉일 상영 규모와 관객 수의 관계 (산점도)
+    # 네 번째 그래프: 개봉일 스크린수와 총 관객수 산점도 (Scatter Plot)
     # -------------------------------------------------------------------------
-    st.header("4. 개봉일 상영 규모와 관객 수의 관계")
-    
-    col1, col2 = st.columns([2, 1])
-    with col2:
-        y_axis_option = st.selectbox(
-            "Y축 지표 선택:",
-            options=['total_audi', 'first_week_audi', 'days_in_top10'],
-            format_func=lambda x: {
-                'total_audi': '총 관객수',
-                'first_week_audi': '개봉 첫 주 관객수',
-                'days_in_top10': 'Top 10 유지 일수'
-            }[x]
-        )
+    st.header("4. 개봉일 스크린수(first_scrn)와 총 관객수(total_audi)의 관계")
     
     fig_scatter = px.scatter(
         df,
         x='first_scrn',
-        y=y_axis_option,
+        y='total_audi',
         color='genre',
         hover_name='movieNm',
-        size='first_show',
         labels={
-            'first_scrn': '개봉일 스크린수',
-            'total_audi': '총 관객수',
-            'first_week_audi': '개봉 첫 주 관객수',
-            'days_in_top10': 'Top 10 유지 일수',
-            'genre': '장르',
-            'first_show': '개봉일 상영횟수'
+            'first_scrn': '개봉일 스크린수(개)',
+            'total_audi': '총 관객수(명)',
+            'genre': '장르'
         },
-        title=f"개봉일 스크린수와 {y_axis_option} 의 관계 (점 크기: 개봉일 상영횟수)"
+        title="개봉일 스크린수 vs 총 관객수 산점도"
     )
-    fig_scatter.update_traces(hovertemplate="<b>%{hovertext}</b><br>스크린수: %{x:,}개<br>지표값: %{y:,}<extra></extra>")
+    
+    fig_scatter.update_traces(
+        hovertemplate="<b>영화명: %{hovertext}</b><br>개봉일 스크린수: %{x:,}개<br>총 관객수: %{y:,}명<extra></extra>",
+        marker=dict(size=9, opacity=0.8)
+    )
+    
+    fig_scatter.update_layout(
+        legend_title_text="장르",
+        font=dict(size=14)
+    )
     
     st.plotly_chart(fig_scatter, use_container_width=True)
     
     st.subheader("💡 이 그래프로 알 수 있는 것")
-    st.info("개봉일 스크린수와 상영횟수가 확보될수록 초기 관객 확보 및 총 관객수 누적에 매우 강력한 양의 상관관계가 존재함을 보여줍니다.")
+    st.info("개봉일 스크린수가 많이 확보될수록 총 관객수가 비례하여 증가하는 강한 양의 상관관계를 보이며, 초기 스크린 확보가 최종 흥행 실적에 핵심적인 요인임을 알 수 있습니다.")
     
 except Exception as e:
     st.error(f"데이터를 불러오거나 처리하는 중 오류가 발생했습니다: {e}")
 '''
 
 with open('main.py', 'w', encoding='utf-8') as f:
-    f.write(main_py_content_v3)
+    f.write(main_py_content_v4)
 
-print("Histogram chart added to main.py successfully.")
+print("Fourth graph added to main.py successfully.")
