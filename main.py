@@ -1,4 +1,5 @@
-import streamlit as st
+# Update main.py content to add treemap as requested
+main_py_content_v2 = '''import streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -20,18 +21,22 @@ def load_data():
     url = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
     df = pd.read_csv(url)
     
-    # genre: 세로막대 기호(|)로 여러 개 적힌 영화는 첫 번째 장르만 추출
+    # genre: 세로막대 기호(|)로 여러 개 적힌 영화는 첫 번째 장르만 extraction
     if 'genre' in df.columns:
         df['genre'] = df['genre'].astype(str).apply(lambda x: x.split('|')[0].strip() if x and x != 'nan' else '기타')
+    
+    # openDt 날짜 형식 변환 (문자열 또는 숫자 8자리 -> datetime)
+    if 'openDt' in df.columns:
+        df['openDt'] = pd.to_datetime(df['openDt'].astype(str), format='%Y%m%d', errors='coerce')
         
     return df
 
 try:
     df = load_data()
     
-    # 사이드바 데이터 정보
+    # 사이드바 데이터 요약 및 필터
     st.sidebar.header("🔍 데이터 정보")
-    st.sidebar.metric("분석 영화 총 편수", f"{len(df)} 편")
+    st.sidebar.metric("총 분석 영화 수", f"{len(df)} 편")
     
     # -------------------------------------------------------------------------
     # 첫 번째 그래프: 장르별 영화 편수 (도넛 차트)
@@ -63,38 +68,85 @@ try:
     
     st.plotly_chart(fig_donut, use_container_width=True)
     
-    # 이 그래프로 알 수 있는 것 구역
+    # 구역 구분 및 알 수 있는 것 안내
     st.subheader("💡 이 그래프로 알 수 있는 것")
-    st.info("특정 주요 장르에 상업 영화 개봉이 집중되어 있으며, 비주류 장르와의 편수 차이가 극명함을 확인할 수 있습니다.")
+    st.info("특정 주요 장르에 상업 영화 제작 및 개봉이 집중되어 있으며, 비주류 장르와의 편수 차이가 극명함을 확인할 수 있습니다.")
     st.divider()
 
     # -------------------------------------------------------------------------
-    # 두 번째 그래프: 개봉일 스크린수와 관객수의 관계 (산점도)
+    # 두 번째 그래프: 장르별 영화 트리맵 (총 관객수 기준)
     # -------------------------------------------------------------------------
-    st.header("2. 개봉일 스크린수와 총 관객수의 관계")
+    st.header("2. 장르별 영화 총 관객수 분포 (트리맵)")
+    
+    fig_treemap = px.treemap(
+        df,
+        path=[px.Constant("전체 영화"), 'genre', 'movieNm'],
+        values='total_audi',
+        color='genre',
+        title="장르 및 영화별 총 관객수 비중",
+        color_discrete_sequence=px.colors.qualitative.Set3
+    )
+    
+    fig_treemap.update_traces(
+        hovertemplate="<b>영화명/구분: %{label}</b><br>총 관객수: %{value:,}명<extra></extra>"
+    )
+    
+    fig_treemap.update_layout(
+        font=dict(size=14)
+    )
+    
+    st.plotly_chart(fig_treemap, use_container_width=True)
+    
+    st.subheader("💡 이 그래프로 알 수 있는 것")
+    st.info("흥행을 견인하는 주요 장르 내에서도 특정 메가 히트작(대형 관객 수 보유 영화)이 차지하는 비중이 매우 큼을 알 수 있습니다.")
+    st.divider()
+
+    # -------------------------------------------------------------------------
+    # 세 번째 그래프: 개봉일 상영 규모와 관객 수의 관계 (산점도)
+    # -------------------------------------------------------------------------
+    st.header("3. 개봉일 상영 규모와 관객 수의 관계")
+    
+    col1, col2 = st.columns([2, 1])
+    with col2:
+        y_axis_option = st.selectbox(
+            "Y축 지표 선택:",
+            options=['total_audi', 'first_week_audi', 'days_in_top10'],
+            format_func=lambda x: {
+                'total_audi': '총 관객수',
+                'first_week_audi': '개봉 첫 주 관객수',
+                'days_in_top10': 'Top 10 유지 일수'
+            }[x]
+        )
     
     fig_scatter = px.scatter(
         df,
         x='first_scrn',
-        y='total_audi',
+        y=y_axis_option,
         color='genre',
         hover_name='movieNm',
         size='first_show',
         labels={
             'first_scrn': '개봉일 스크린수',
             'total_audi': '총 관객수',
+            'first_week_audi': '개봉 첫 주 관객수',
+            'days_in_top10': 'Top 10 유지 일수',
             'genre': '장르',
             'first_show': '개봉일 상영횟수'
         },
-        title="개봉일 스크린수 vs 총 관객수 (점 크기: 개봉일 상영횟수)"
+        title=f"개봉일 스크린수와 {y_axis_option} 의 관계 (점 크기: 개봉일 상영횟수)"
     )
-    fig_scatter.update_traces(hovertemplate="<b>%{hovertext}</b><br>스크린수: %{x:,}개<br>총 관객수: %{y:,}명<extra></extra>")
+    fig_scatter.update_traces(hovertemplate="<b>%{hovertext}</b><br>스크린수: %{x:,}개<br>지표값: %{y:,}<extra></extra>")
     
     st.plotly_chart(fig_scatter, use_container_width=True)
     
     st.subheader("💡 이 그래프로 알 수 있는 것")
-    st.info("개봉일 스크린수와 상영횟수가 많이 확보될수록 총 누적 관객수가 증가하는 강한 양의 상관관계가 나타납니다.")
-    st.divider()
-
+    st.info("개봉일 스크린수와 상영횟수가 확보될수록 초기 관객 확보 및 총 관객수 누적에 매우 강력한 양의 상관관계가 존재함을 보여줍니다.")
+    
 except Exception as e:
-    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
+    st.error(f"데이터를 불러오거나 처리하는 중 오류가 발생했습니다: {e}")
+'''
+
+with open('main.py', 'w', encoding='utf-8') as f:
+    f.write(main_py_content_v2)
+
+print("main.py updated successfully.")
