@@ -1,5 +1,5 @@
-# Update main.py content to structure all four charts nicely according to requirements
-main_py_content_v4 = '''import streamlit as st
+# Update main.py content to add the fifth chart: Boxplot for genres with >= 10 movies
+main_py_content_v5 = '''import streamlit as st
 import pandas as pd
 import plotly.express as px
 
@@ -174,12 +174,50 @@ try:
     
     st.subheader("💡 이 그래프로 알 수 있는 것")
     st.info("개봉일 스크린수가 많이 확보될수록 총 관객수가 비례하여 증가하는 강한 양의 상관관계를 보이며, 초기 스크린 확보가 최종 흥행 실적에 핵심적인 요인임을 알 수 있습니다.")
+    st.divider()
+
+    # -------------------------------------------------------------------------
+    # 다섯 번째 그래프: 주요 장르별 총 관객수 상자 그림 (Box Plot)
+    # -------------------------------------------------------------------------
+    st.header("5. 주요 장르별 총 관객수 분포 (상자 그림)")
+    
+    # 영화 편수가 10편 이상인 장르만 필터링
+    genre_counts_series = df['genre'].value_counts()
+    major_genres = genre_counts_series[genre_counts_series >= 10].index.tolist()
+    df_major_genres = df[df['genre'].isin(major_genres)]
+    
+    fig_box = px.box(
+        df_major_genres,
+        x='genre',
+        y='total_audi',
+        color='genre',
+        hover_name='movieNm',
+        labels={
+            'genre': '장르',
+            'total_audi': '총 관객수(명)'
+        },
+        title="영화 편수 10편 이상 주요 장르별 총 관객수 분포 (이상치 표시)"
+    )
+    
+    fig_box.update_traces(
+        hovertemplate="<b>영화명: %{hovertext}</b><br>총 관객수: %{y:,}명<extra></extra>"
+    )
+    
+    fig_box.update_layout(
+        legend_title_text="장르",
+        font=dict(size=14)
+    )
+    
+    st.plotly_chart(fig_box, use_container_width=True)
+    
+    st.subheader("💡 이 그래프로 알 수 있는 것")
+    st.info("영화 편수가 10편 이상인 주요 장르 대부분은 중간값(중앙값)이 낮게 형성되어 있으나, 일부 초대형 흥행작(상자 밖의 이상치)들이 해당 장르의 최고 흥행 실적을 이끌고 있음을 보여줍니다.")
     
 except Exception as e:
     st.error(f"데이터를 불러오거나 처리하는 중 오류가 발생했습니다: {e}")
 '''
 
 with open('main.py', 'w', encoding='utf-8') as f:
-    f.write(main_py_content_v4)
+    f.write(main_py_content_v5)
 
-print("Fourth graph added to main.py successfully.")
+print("Fifth graph added to main.py successfully.")
